@@ -49,20 +49,93 @@ include_once( 'kernel/shop/classes/ezpaymentgateway.php' );
 
 class eZCurlGateway extends eZPaymentGateway
 {
-    // override $useForm as false if you do not need to gather additional
-    // user information before you send the curl information (although I can't
-    // think of many situations in which this would happen, let me know if you
-    // actually use it, otherwise I might just take it out.
-
-    var $useForm = true;
-
     /*!
      Constructor.
     */
     function eZCurlGateway()
     {
     }
-
+    // override useForm() as false if you do not need to gather additional
+    // user information before you send the curl information (although I can't
+    // think of many situations in which this would happen, let me know if you
+    // actually use it, otherwise I might just take it out.
+    function useForm()
+    {
+        if ( eZSys::isShellExecution() )
+            return false;
+        else 
+            return true; 
+    }
+    function createDOMTreefromArray( $name, $array )
+    {
+        
+        $doc = new eZDOMDocument( $name );
+        $root = $doc->createElementNode( $name );
+        $keys = array_keys( $array );
+        foreach ( $keys as $key )
+        {
+            if ( is_array( $array[$key] ) )
+            {
+                //TODO recursive should work too
+                // createDOMTreefromArray( $key, $array[$key] )
+            }
+            else
+            {
+                $node = $doc->createElementNode( $key );
+                $node->appendChild( $doc->createTextNode( $array[$key] ) );
+            }
+            
+            $root->appendChild( $node );
+            unset( $node );
+        }
+        return $root;
+    }
+    function createArrayfromXML( $xmlDoc )
+    {
+        $result = array();
+        $xml = new eZXML();
+        $dom = $xml->domTree( $xmlDoc );
+        $node = $dom->get_root();
+        $children = $node->children();
+        foreach ( $children as $child )
+        {
+            $contentnode = $child->firstChild();
+            if ( $contentnode->type === EZ_XML_NODE_TEXT )
+            {
+                $result[$child->name()] = $contentnode->textContent();
+            }
+            else
+            {
+                // do something recurisve here, there is currently no need
+            }
+        }
+        return $result;
+    }
+    function gpgEncode( $value )
+    {
+        if ( include_once( 'extension/ezgpg/autoloads/ezgpg_operators.php' ) )
+        {
+            $b_ini = eZINI::instance( 'ezgpg.ini' );
+            $key = trim( $b_ini->variable( 'eZGPGSettings', 'KeyID' ) );
+            $return = eZGPGOperators::gpgEncode( $value, $key, true );
+            if ( $return !== false )
+                $value = $return;
+        }
+        return $value;
+    }
+    function gpgDecode( $value )
+    {
+        $return = $value;
+        if ( include_once( 'extension/ezgpg/autoloads/ezgpg_operators.php' ) )
+        {
+            $b_ini = eZINI::instance( 'ezgpg.ini' );
+            $key = trim( $b_ini->variable( 'eZGPGSettings', 'KeyID' ) );
+            $return = eZGPGOperators::gpgDecode( $value, $key, true );
+            if ( $return !== false )
+                $value = $return;
+        }
+        return $value;
+    }
     function execute( &$process, $event )
     {
         $http = eZHTTPTool::instance();
@@ -77,6 +150,7 @@ class eZCurlGateway extends eZPaymentGateway
 
             if ( !$errors ) {
                 $process->setAttribute( 'event_state', EZ_CURL_GATEWAY_DO_CURL );
+                $this->storeHTTPInput();
             }
             else
             {
@@ -87,7 +161,8 @@ class eZCurlGateway extends eZPaymentGateway
         if ( $process->attribute('event_state') == EZ_CURL_GATEWAY_SHOW_FORM )
         {
             // set the event state to do curl if we are not using a form
-            if ( !$this->useForm ) {
+            if ( !$this->useForm() )
+            {
                 $process->setAttribute( 'event_state', EZ_CURL_GATEWAY_DO_CURL );
             }
         }
@@ -107,6 +182,15 @@ class eZCurlGateway extends eZPaymentGateway
         }
     }
 
+    /*!
+    \method abstract
+    \brief Needs to be overridden and return
+    if you are using a form you need to store the data in the shop account handler.
+    */
+    function storeHTTPInput( &$process )
+    {
+        return true;
+    }
     /*!
     \method abstract
     \brief Needs to be overridden and return

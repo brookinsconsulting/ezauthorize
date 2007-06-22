@@ -39,19 +39,11 @@
 
 include_once ( 'extension/ezauthorize/classes/ezcurlgateway.php' );
 include_once ( 'extension/ezauthorize/classes/ezauthorizeaim.php' );
-// include_once ( 'extension/ezauthorize/classes/obj_xml.phps' );
+include_once( 'lib/ezxml/classes/ezxml.php' );
 
 define( "EZ_PAYMENT_GATEWAY_TYPE_EZAUTHORIZE", "eZAuthorize" );
 
-function ezauthorize_format_number( $str, $decimal_places='2', $decimal_padding="0" ) {
-    /* firstly format number and shorten any extra decimal places */
-    /* Note this will round off the number pre-format $str if you dont want this fucntionality */
-    $str =  number_format( $str, $decimal_places, '.', '');    // will return 12345.67
-    $number = explode( '.', $str );
-    $number[1] = ( isset( $number[1] ) )?$number[1]:''; // to fix the PHP Notice error if str does not contain a decimal placing.
-    $decimal = str_pad( $number[1], $decimal_places, $decimal_padding );
-    return (float) $number[0].'.'.$decimal;
-}
+
 
 class eZAuthorizeGateway extends eZCurlGateway
 {
@@ -61,7 +53,76 @@ class eZAuthorizeGateway extends eZCurlGateway
     function eZAuthorizeGateway()
     {
     }
+    function _format_number( $str, $decimal_places='2', $decimal_padding="0" )
+    {
+        /* firstly format number and shorten any extra decimal places */
+        /* Note this will round off the number pre-format $str if you dont want this fucntionality */
+        $str =  number_format( $str, $decimal_places, '.', '');    // will return 12345.67
+        $number = explode( '.', $str );
+        $number[1] = ( isset( $number[1] ) )?$number[1]:''; // to fix the PHP Notice error if str does not contain a decimal placing.
+        $decimal = str_pad( $number[1], $decimal_places, $decimal_padding );
+        return (float) $number[0].'.'.$decimal;
+    }
+    function _loadAccountHandlerData( &$process )
+    {
+        $ini = eZINI::instance( 'ezauthorize.ini' );
+        $processParams = $process->attribute( 'parameter_list' );
+        $order = eZOrder::fetch( $processParams['order_id'] );
+        $xmlDoc = $order->attribute( 'data_text_1' );
 
+        $this->data = $this->createArrayfromXML( $xmlDoc );
+        if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true  )
+        {
+            if ( isset( $this->data['ezauthorize-card-number'] ) )
+                $this->data['ezauthorize-card-number'] = $this->gpgDecode( $this->data['ezauthorize-card-number'] );
+            if ( isset( $this->data['ezauthorize-card-name'] ) )
+                $this->data['ezauthorize-card-name'] = $this->gpgDecode( $this->data['ezauthorize-card-name'] );
+            if ( isset( $this->data['ezauthorize-security-number'] ) )
+                $this->data['ezauthorize-security-number'] = $this->gpgDecode( $this->data['ezauthorize-security-number'] );
+        }
+    }
+    function _storeAccountHandlerData( &$process )
+    {
+        $ini = eZINI::instance( 'ezauthorize.ini' );
+        $processParams = $process->attribute( 'parameter_list' );
+        $order = eZOrder::fetch( $processParams['order_id'] );
+        
+        $data = $this->data;
+        
+        // If transaction storage is enabled
+        if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true  )
+        {
+            if ( isset( $this->data['ezauthorize-card-number'] ) )
+                $data['ezauthorize-card-number'] = $this->gpgEncode( $this->data['ezauthorize-card-number'] );
+            if ( isset( $this->data['ezauthorize-card-name'] ) )
+                $data['ezauthorize-card-name'] = $this->gpgEncode( $this->data['ezauthorize-card-name'] );
+            if ( isset( $this->data['ezauthorize-security-number'] ) )
+                $data['ezauthorize-security-number'] = $this->gpgEncode( $this->data['ezauthorize-security-number'] );
+        }
+        $doc = new eZDOMDocument( 'account_information' );
+        $root = $this->createDOMTreefromArray( 'shop_account', $data );
+        $doc->setRoot( $root );
+        $order->setAttribute( 'data_text_1', $doc->toString() );
+        $order->store();        
+    }
+
+    function storeHTTPInput( &$process )
+    {
+        $this->_loadAccountHandlerData( $process );
+        
+        $http = eZHTTPTool::instance();
+        
+        // assign shop account handeler payment values
+        if( is_array( $this->data ) )
+        {
+            $this->data['ezauthorize-card-name'] = trim( $http->postVariable( 'CardName' ) );
+            $this->data['ezauthorize-card-number'] = trim( $http->postVariable( 'SecurityNumber' ) );
+            $this->data['ezauthorize-card-date'] = trim( $http->postVariable( 'ExpirationMonth' ) ) . trim( $http->postVariable( 'ExpirationYear' ) );
+            $this->data['ezauthorize-card-type'] = strtolower( $http->postVariable( 'CardType' ) );
+            $this->data['ezauthorize-security-number'] = trim( $http->postVariable( 'SecurityNumber' ) );
+            $this->_storeAccountHandlerData( $process );
+        }
+    }
     function loadForm( &$process, $errors = 0 )
     {
         $http = eZHTTPTool::instance();
@@ -70,7 +131,7 @@ class eZAuthorizeGateway extends eZCurlGateway
         $processParams = $process->attribute( 'parameter_list' );
 
         // load ini
-        $ini = &eZINI::instance( 'ezauthorize.ini' );
+        $ini = eZINI::instance( 'ezauthorize.ini' );
 
         // regen posted form values
         if ( $http->hasPostVariable( 'validate' ) and
@@ -117,7 +178,7 @@ class eZAuthorizeGateway extends eZCurlGateway
     function validateForm( &$process )
     {
         $http = eZHTTPTool::instance();
-        $errors = false;
+        $errors = array();
 
         if ( trim( $http->postVariable( 'CardNumber' ) ) == '' )
         {
@@ -155,10 +216,8 @@ class eZAuthorizeGateway extends eZCurlGateway
     */
     function doCURL( &$process )
     {
+        $this->_loadAccountHandlerData( $process );
         include_once( 'kernel/classes/datatypes/ezuser/ezuser.php' );
-        // debug output sent to server from eZ publish to authorize.net web service
-        include_once( 'extension/ezdbug/autoloads/ezdbug.php' );
-        $d = new eZDBugOperators();
 
         // load ini
         $ini = eZINI::instance( 'ezauthorize.ini' );
@@ -168,15 +227,6 @@ class eZAuthorizeGateway extends eZCurlGateway
         $successStatusCode =  $ini->variable( 'eZAuthorizeSettings', 'SuccessStatusCode' );
         $failStatusCode =  $ini->variable( 'eZAuthorizeSettings', 'FailStatusCode' );
 
-        // fetch keyID
-        $key_id = $ini->variable( 'eZGPGSettings', 'KeyID' );
-
-        // debug status
-        $debug = false;
-
-        // load http
-        $http = eZHTTPTool::instance();
-
         // make the order object
         $processParams = $process->attribute( 'parameter_list' );
 
@@ -184,12 +234,7 @@ class eZAuthorizeGateway extends eZCurlGateway
         $order_id = $processParams['order_id'];
 
         // get order
-        $order = &eZOrder::fetch( $processParams['order_id'] );
-
-        if ( $debug and $debug_order_information ) {
-        // the whole object
-         $d->ezdbugDump($order);
-        }
+        $order = eZOrder::fetch( $processParams['order_id'] );
 
         // get total order amount, including tax
         $order_total_amount = $order->attribute( 'total_inc_vat' );
@@ -197,36 +242,30 @@ class eZAuthorizeGateway extends eZCurlGateway
         $order_total_tax_amount = $order->attribute( 'total_inc_vat' ) - $order->attribute( 'total_ex_vat' );
 
         // get totals in number format
-        $order_total_amount = ezauthorize_format_number( $order_total_amount );
-        $order_total_tax_amount = ezauthorize_format_number( $order_total_tax_amount );
+        $order_total_amount = $this->_format_number( $order_total_amount );
+        $order_total_tax_amount = $this->_format_number( $order_total_tax_amount );
 
         // get user id
         $user_id = $processParams['user_id'];
-
-        // note start of order transmission
-        if( $startStatusCode )
-        {
-            // $order->modifyStatus( $startStatusCode );
-            // $order->setStatus( $startStatusCode );
-        }
 
         // assign variables to Authorize.Net class from post
         $aim = new eZAuthorizeAIM();
 
         // assign card name
-        $aim->addField( 'x_card_name', trim( $http->postVariable( 'CardName' ) ) );
+        $aim->addField( 'x_card_name', $this->data['ezauthorize-card-name'] );
 
         // assign card expiration date
-        $aim->addField( 'x_exp_date', $http->postVariable( 'ExpirationMonth' ) . $http->postVariable( 'ExpirationYear' ) );
+        $aim->addField( 'x_exp_date', $this->data['ezauthorize-card-date'] );
 
         // assign card number
-        $aim->addField( 'x_card_num', trim( $http->postVariable( 'CardNumber' ) ) );
+        $aim->addField( 'x_card_num', $this->data['ezauthorize-card-number'] );
 
         // check cvv2 code
-        if ( $ini->variable( 'eZAuthorizeSettings', 'CustomerCVV2Check' ) == 'true' )
+        if ( $ini->variable( 'eZAuthorizeSettings', 'CustomerCVV2Check' ) == 'true' 
+             and $this->data['ezauthorize-security-number'] )
         {
             // assign card security number, cvv2 code
-            $aim->addField( 'x_card_code', trim( $http->postVariable( 'SecurityNumber' ) ) );
+            $aim->addField( 'x_card_code', $this->data['ezauthorize-security-number'] );
         }
 
         // get order customer information
@@ -238,18 +277,12 @@ class eZAuthorizeGateway extends eZCurlGateway
                 if ( $ini->variable( 'eZAuthorizeSettings', 'CustomerAddressVerification' ) == 'true' )
                 {
                     $this->addAVS( $aim );
-
-                    // debug step output, transaction data stucture
-                    // $d->ezdbugDump($aim);
                 }
 
                 // Send customer shipping address to authorize.net
                 if ( $ini->variable( 'eZAuthorizeSettings', 'SendCustomerShippingAddress' ) == 'true' )
                 {
                     $this->addShipping( $aim );
-
-                    // debug step output, transaction data stucture
-                    // $d->ezdbugDump($aim);
                 }
 
                 // Send customer phone number (optional)
@@ -267,28 +300,15 @@ class eZAuthorizeGateway extends eZCurlGateway
         // ps real order numbers do not exist in eZ publish until after payment
         // processing has been completed successfully so this is not possible by default.
 
-        // if ( $ini->valriable('eZAuthorizeSetting', 'SetOrderID' ) ) {
-
         // or get actual order id (different number used in order view urls)
         $aim->addField( 'x_invoice_num', $order->attribute( 'id' ) );
 
         // assign authorize.net transaction description
         $aim->addField( 'x_description', 'Order URL ID #' . $order->attribute( 'id' ) );
 
-
-
-        // } else { }
-
-        // get actual order number
-        // $aim->addField( 'x_invoice_num', $order->attribute( 'order_nr' ) );
-
-        // assign authorize.net transaction description
-        // $aim->addField( 'x_description', 'Order ID #' . $order->attribute( 'order_nr' ) );
-
-        // }
-
         // assign customer IP
-        $aim->addField( 'x_customer_ip', $_SERVER['REMOTE_ADDR'] );
+        if ( !eZSys::isShellExecution() )
+            $aim->addField( 'x_customer_ip', $_SERVER['REMOTE_ADDR'] );
 
         // assign customer id
         $aim->addField( 'x_cust_id', $user_id );
@@ -325,66 +345,6 @@ class eZAuthorizeGateway extends eZCurlGateway
         // set authorize.net mode
         $aim->setTestMode( $ini->variable( 'eZAuthorizeSettings', 'TestMode' ) == 'true' );
 
-        // set examples of non-required and or not often used authorize.net data fields
-        if( false )
-        {
-            $aim->addField( 'x_encap_char', '' );
-            $aim->addField( 'x_duplicate_window', '0' );
-
-            // itemized order information (currently not yet supported)
-            // loop over items and add fields per item
-            $aim->addField( 'x_line_item', 'item1<|>golf balls<|><|>2<|>24.99<|>N' );
-            $aim->addField( 'x_line_item', 'item2<|>golf balls<|><|>3<|>42.00<|>Y' );
-
-            // level2 fields (partialy supported by eZ publish with custom modifications)
-            $aim->addField( 'x_po_num', '' );
-            $aim->addField( 'x_freight', '' );
-            $aim->addField( 'x_duty', '' );
-            $aim->addField( 'x_tax_exempt', false );
-
-            $aim->addField( 'x_customer_organization_type', '' );
-            $aim->addField( 'x_customer_tax_id', '' );
-
-            $aim->addField( 'x_drivers_license_num', '' );
-            $aim->addField( 'x_drivers_license_state', '' );
-            //$aim->addField( 'x_drivers_license_dob', '' );
-
-            // Authorize.net supports recurring billing service transactions
-            $aim->addField( 'x_recurring_billing', 'NO' );
-
-            // echeck / payment processing of payment via check information (currently not yet supported)
-            //
-            // wells fargo / payment processing of payment via bank information (currently not yet supported)
-        }
-
-        // if( isset( $http->postVariable( 'eZAuthorizeDebugSkip' ) ) or $debug == true )
-        // if( true or isset( $http->postVariable( 'eZAuthorizeDebugSkip' ) ) or $debug == true )
-        //        if( true or isset( $http->postVariable( 'eZAuthorizeDebugSkip' ) ) or $debug == true )
-        //        if( $http->postVariable( 'validate' ) == 'Submit' )
-        // user toggled debug display ...
-
-        if( $debug == true )
-        {
-            print_r("<hr />");
-            print_r("<a href='' onclick='history.go(-1); false'><<</a> | reload, press keyboard key sequence, 'ctrl-r' | >> <br />");
-            print_r('<hr />');
-            /*
-            print_r("<form name='ezauthorizeForm' action='checkout' method='post'>Skip Debug, Submit Payment Transaction - <input class='defaultbutton' type='submit' name='validate' value='Submit0' onSubmit='window.location.reload(); return false;' /></form>");
-            print_r("<form><input type=submit name='eZAuthorizeDebugReload' value='ReEnter Payment Details' onSubmit='confirm(\"Are you certain?\")' /></form>");
-            print_r("<form><input type=submit name='eZAuthorizeDebugReloaded' value='Reload Debug Display' /></form>");
-            print_r('<hr />');
-            */
-
-            // the whole object
-            $d->ezdbugDump($aim);
-
-            // just the string
-            $d->ezdbugDump($aim->getFieldString());
-
-            print_r('<hr />');
-            die();
-        }
-
         // send payment information to authorize.net
         $aim->sendPayment();
         $response = $aim->getResponse();
@@ -420,231 +380,17 @@ class eZAuthorizeGateway extends eZCurlGateway
             }
                 $errors[] = $response['Response Reason Text'];
 
-            // note payment failure
-            if( $failStatusCode )
-            {
-              // $order->modifyStatus( $failStatusCode );
-              // $order->setStatus( $failStatusCode );
-            }
-
             return $this->loadForm( $process, $errors );
         }
         else
         {
-            // note successful payment
-            if( $successStatusCode )
-            {
-                // $order->modifyStatus( $successStatusCode );
-                // $order->setStatus( $successStatusCode );
-            }
-
-            ////////////////////////////////////////////////////
-
-            // get order id
-            // $order_id = $processParams['order_id'];
-
-            // get order
-            // $order = &eZOrder::fetch( $processParams['order_id'] );
-
 
             ////////////////////////////////////////////////////
             // Original Authorize.net Payment Transaction Values
 
             // assign authorize.net transaction id from transaction responce array
-            $transaction_id = $response['Transaction ID'];
-
-            // assign card name
-            $card_name = trim( $http->postVariable( 'CardName' ) );
-
-            // assign card number
-            $card_num = trim( $http->postVariable( 'CardNumber' ) );
-
-
-            //////////////
-            // stuff|encrypt()
-
-            // If transaction storage is enabled
-            if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true )
-            {
-                // if payment storage is enabled
-                if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true ) {
-
-                    $b_ini = &eZINI::instance( 'ezgpg.ini' );
-                    $key = trim( $b_ini->variable( 'eZGPGSettings', 'KeyID' ) );
-
-                    // load payment storage dependances
-                    include_once( 'extension/ezgpg/autoloads/ezgpg_operators.php' );
-
-                    // Create storage wrapper
-                    $c = new eZGPGOperators;
-
-                    $s_card_number_encoded = $c->gpgEncode( $card_num, $key, true );
-                    $s_card_name_encoded = $c->gpgEncode( $card_name, $key, true );
-
-                    if( $debug )
-                    {
-                       /*
-                        $s_card_name_decoded = $c->gpgDecode( $s_card_name_encoded, $key );
-                        $s_card_number_decoded = $c->gpgDecode( $s_card_number_encoded, $key );
-                        $s_card_number_decoded = $c->gpgDecode( $s_card_number_encoded, $key, true);
-                       */
-
-                       print_r( 'plain text: '. $card_num .'<hr />' );
-                       print_r( 'encoded: '.$s_card_number_encoded .'<hr />' );
-                       print_r( 'decoded: '.$s_card_number_decoded .'<hr />' );
-                       die( '<hr />' );
-                    }
-
-                    if ( $s_card_number_encoded )
-                    {
-                        $card_name = $s_card_name_encoded;
-                        $card_num = $s_card_number_encoded;
-                    }
-
-                }
-            }
-
-            //////////////
-
-            // assign card expiration date
-            $card_date = trim( $http->postVariable( 'ExpirationMonth' ) ) . trim( $http->postVariable( 'ExpirationYear' ) );
-
-            // assign card type
-            $card_type = strtolower( $http->postVariable( 'CardType' ) );
-
-            ////////////////////////////////////////////////////
-            // get order information out of eZXML
-
-            include_once( 'lib/ezxml/classes/ezxml.php' );
-
-            $xmlDoc = $order->attribute( 'data_text_1' );
-
-            if (!$dom = domxml_open_mem($xmlDoc)) {
-                echo "Error while parsing the document\n";
-                exit;
-            }
-
-            // assign shop account handeler payment values
-            if( $xmlDoc != null )
-            {
-
-              // get dom document
-              // $root = $dom->document_element();
-              // $root_name = $root->tagname;
-
-              // $root->name = '$shop_account';
-              // print_r($root_name .'<br />');
-              // x2
-              // print_r('<br />');
-              // echo $xmlDoc;
-              // print_r('<hr />');
-
-              // echo $dom->dump_mem( );
-
-              /////////////////////////////////////////////////////////
-              // print_r('<hr />');
-
-              include_once ( 'extension/ezauthorize/classes/mcxml.php' );
-
-              $xml_array = xml2array( $xmlDoc );
-              // die( $xmlDoc );
-
-              $xmlvars = array();
-
-              RecursVars( $xml_array, $xmlvars );
-              $xmlvars['ezauthorize-transaction-id'] = $transaction_id;
-
-              $xmlvars['ezauthorize-card-name'] = $card_name;
-
-              $xmlvars['ezauthorize-card-number'] = $card_num;
-
-              $xmlvars['ezauthorize-card-date'] = $card_date;
-
-              $xmlvars['ezauthorize-card-type'] = $card_type;
-
-              $xmlDomAppended = array_to_xml( $xmlvars );
-				
-              print_r( $xmlDomAppended );
-              // print_r( $xmlvars );
-              // die( $c );
-
-              /////////////////////////////////////////////////////////
-              // End?
-
-              /*
-              die('<hr />end of line');
-              die();
-              $cs;
-              */
-
-              // create nodes for payment information storage
-              /*
-              $transaction_id_node = $doc->createElementNode( "ezauthorize-transaction-id" );
-              $transaction_id_node->appendChild( $doc->createTextNode( $transaction_id ) );
-              $root->appendChild( $transaction_id_node );
-              $cs .= $doc->toString();
-
-              $card_name_node = $doc->createElementNode( "ezauthorize-card-name" );
-              $card_name_node->appendChild( $doc->createTextNode( $card_name ) );
-              $root->appendChild( $card_name_node );
-              $cs .= $doc->toString();
-
-              $card_number_node = $doc->createElementNode( "ezauthorize-card-number" );
-              $card_number_node->appendChild( $doc->createTextNode( $card_num ) );
-              $root->appendChild( $card_number_node );
-              $cs .= $doc->toString();
-
-              $card_date_node = $doc->createElementNode( "ezauthorize-card-date" );
-              $card_date_node->appendChild( $doc->createTextNode( $card_date ) );
-              $root->appendChild( $card_date_node );
-              $cs .= $doc->toString();
-
-              // $s = $doc->toString();
-              echo( $cs );
-             */ 
-              // die('<hr />');
-
-              $order->setAttribute( 'data_text_1', $xmlDomAppended );
-              $order->store();
-              // die();
-
-            }
-
-            ////////////////////////////////////////////////////
-            // payment information
-
-            /*
-            include_once ( 'extension/ezauthorize/classes/ezpayment.php' );
-            $payment = new eZPayment( $response['Transaction ID'] );
-
-            // set Payment Details
-            $payment->setTransactionID = $response['Transaction ID'];
-
-            // get the current timestamp
-            $currdate = gmdate("Ymd");
-            $currday = substr($currdate,6,2);
-            $currmonth = substr($currdate,4,2);
-            $curryear = substr($currdate,0,4);
-            $currdate_stamp = ($curryear . "-" . $currmonth . "-" . $currday);
-            $payment->setTransactionDate = $currdate_stamp;
-
-            */
-
-            /*
-            $payment->setOrderID = $order_id; // set order id
-
-            $payment->setNumeric = trim( $http->postVariable( 'CardNumber' ) );
-
-            $payment->setDate = $http->postVariable( 'ExpirationMonth' ) . $http->postVariable( 'ExpirationYear' );
-
-            // Legend: #1 = Credit Card, #2 = eCheck, #3 = Paypal, #4 = Other
-            $payment->setType = 1;
-            */
-
-            // store
-            // $payment->store();
-
-            ////////////////////////////////////////////////////
+            $this->data['ezauthorize-transaction-id'] = $response['Transaction ID'];
+            $this->_storeAccountHandlerData( $process );
 
             return EZ_WORKFLOW_TYPE_STATUS_ACCEPTED;
         }
@@ -752,35 +498,6 @@ class eZAuthorizeGateway extends eZCurlGateway
 	$this->order_country = $order_country[0]->textContent();
 	else
 	$this->order_country = '';
-
-
-            /* $order_country = 'United States of America';
-            $this->order_country = $order_country;
-            */
-            /*
-            Missing in current custom shop handler
-
-            $order_country = $dom->elementsByName( $handeler_name_country );
-            $this->order_country = $order_country[0]->textContent();
-            */
-
-            /*
-             Note: Seemingly not provided by default???
-            $order_comment = $dom->elementsByName( $handeler_name_comment );
-            $this->order_comment = $order_comment[0]->textContent();
-            */
-
-            /*
-            // debug output sent to server from eZ publish to authorize.net web service
-            include_once('extension/ezdbug/autoloads/ezdbug.php' );
-
-            $b = new eZDBugOperators();
-            $b->ezdbugDump($dom);
-
-            print_r('<hr />');
-
-            die();
-            */
 
             return true;
         }
