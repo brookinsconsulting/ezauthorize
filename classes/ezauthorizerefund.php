@@ -25,7 +25,6 @@ include_once( 'kernel/classes/ezorder.php' );
 include_once( 'lib/ezxml/classes/ezxml.php' );
 
 include_once( 'extension/ezauthorize/classes/ezauthorizeaim.php' );
-include_once( 'extension/ezauthorize/classes/mcxml.php' );
 
 class ezAuthorizeRefund
 {
