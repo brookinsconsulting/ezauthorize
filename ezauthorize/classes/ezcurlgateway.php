@@ -150,7 +150,7 @@ class eZCurlGateway extends eZPaymentGateway
 
             if ( !$errors ) {
                 $process->setAttribute( 'event_state', EZ_CURL_GATEWAY_DO_CURL );
-                $this->storeHTTPInput();
+                $this->storeHTTPInput( $process );
             }
             else
             {
