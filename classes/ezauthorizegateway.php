@@ -301,10 +301,10 @@ class eZAuthorizeGateway extends eZCurlGateway
         // processing has been completed successfully so this is not possible by default.
 
         // or get actual order id (different number used in order view urls)
-        $aim->addField( 'x_invoice_num', $order->attribute( 'id' ) );
+        $aim->addField( 'x_invoice_num', $order->attribute( 'order_nr' ) );
 
         // assign authorize.net transaction description
-        $aim->addField( 'x_description', 'Order URL ID #' . $order->attribute( 'id' ) );
+        $aim->addField( 'x_description', 'Order URL ID #' . $order->attribute( 'order_nr' ) );
 
         // assign customer IP
         if ( !eZSys::isShellExecution() )
