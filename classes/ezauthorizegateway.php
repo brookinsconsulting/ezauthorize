@@ -116,7 +116,7 @@ class eZAuthorizeGateway extends eZCurlGateway
         if( is_array( $this->data ) )
         {
             $this->data['ezauthorize-card-name'] = trim( $http->postVariable( 'CardName' ) );
-            $this->data['ezauthorize-card-number'] = trim( $http->postVariable( 'SecurityNumber' ) );
+            $this->data['ezauthorize-card-number'] = trim( $http->postVariable( 'CardNumber' ) );
             $this->data['ezauthorize-card-date'] = trim( $http->postVariable( 'ExpirationMonth' ) ) . trim( $http->postVariable( 'ExpirationYear' ) );
             $this->data['ezauthorize-card-type'] = strtolower( $http->postVariable( 'CardType' ) );
             $this->data['ezauthorize-security-number'] = trim( $http->postVariable( 'SecurityNumber' ) );
