@@ -477,7 +477,8 @@ class eZAuthorizeGateway extends eZCurlGateway
             $this->order_fax = '';
 
             $order_street2 = $dom->elementsByName( $handeler_name_street2 );
-            $this->order_street2 = $order_street2[0]->textContent();
+            if (is_object($order_street2))
+                $this->order_street2 = $order_street2[0]->textContent();
 
             $order_zip = $dom->elementsByName( $handeler_name_zip );
             $this->order_zip = $order_zip[0]->textContent();
