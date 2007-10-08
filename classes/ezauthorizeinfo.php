@@ -118,21 +118,29 @@ class eZAuthorizeInfo
         $aim->addField( 'x_type', 'AUTH_ONLY' );
         // assign card name
         $aim->addField( 'x_card_name', $data['name'] );
-
+        
         // assign card expiration date
-        $aim->addField( 'x_exp_date', $time->month() . $time->year() );
+        $aim->addField( 'x_exp_date', $time->month() . substr( $time->year(), 2, 2 ) );
 
         // assign card number
         $aim->addField( 'x_card_num', $data['number']  );
+
+        // assign customer IP
+        if ( !eZSys::isShellExecution() )
+            $aim->addField( 'x_customer_ip', $_SERVER['REMOTE_ADDR'] );
 
         // check cvv2 code
         if ( $ini->variable( 'eZAuthorizeSettings', 'CustomerCVV2Check' ) == 'true' )
         {
             // assign card security number, cvv2 code
+            // This may not work with every card if the if they issuing bank does not support verification
             $aim->addField( 'x_card_code', $data['securitycode'] );
         }
         $aim->addField( 'x_description', 'Authorization Check' );
-        $aim->addField( 'x_cust_id', eZUser::currentUserID() );
+        #$aim->addField( 'x_cust_id', eZUser::currentUserID() );
+
+        $aim->addField( 'x_email_customer', 'false' );
+        $aim->addField( 'x_email_merchant', 'false' );
         // get currency code
         $currency_code =  $ini->variable( 'eZAuthorizeSettings', 'CurrencyCode' );
 
@@ -141,15 +149,19 @@ class eZAuthorizeInfo
         {
             $aim->addField( 'x_currency_code', $currency_code );
         }
+        
+        #$aim->addField( 'x_authentication_indicator', '7' );
+        $aim->addField( 'x_invoice_num', uniqid( "validate_" ) );
         // assign total variables from order $ 1 transaction
+       
         $aim->addField( 'x_amount', '1.00' );
-        $aim->addField( 'x_tax', '0.00' );
         // assign merchant account information
         $aim->addField( 'x_login', $ini->variable( 'eZAuthorizeSettings', 'MerchantLogin' ) );
         $aim->addField( 'x_tran_key', $ini->variable( 'eZAuthorizeSettings', 'TransactionKey' ) );
 
         // set authorize.net mode
         $aim->setTestMode( $ini->variable( 'eZAuthorizeSettings', 'TestMode' ) == 'true' );
+
         // send payment information to authorize.net
         $aim->sendPayment();
         $response = $aim->getResponse();
