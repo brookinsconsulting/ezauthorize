@@ -218,7 +218,7 @@ class eZAuthorizeAIM
 
         // Fix for curl version > 7.1 with require CA cert by default.
         // For better security implement a cacert bundle
-        $file = eZExtension::baseDirectory() . '/ezauthorize/cacert.pem';
+        $file = eZSys::rootDir() . '/'  . eZExtension::baseDirectory() . '/ezauthorize/cacert.pem';
         if ( $ini->variable( 'eZAuthorizeSettings', 'SSLVerify' ) == 'true'
              and file_exists( $file ) )
         {
@@ -228,12 +228,13 @@ class eZAuthorizeAIM
         {
             curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
         }
-
+        $fields = $this->getFieldString();
+        eZDebug::writeDebug( $fields , 'Request' );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $this->getFieldString() );
+        curl_setopt( $ch, CURLOPT_POSTFIELDS, $fields );
 
         $this->response_string=urldecode( curl_exec( $ch ) );
-
+        eZDebug::writeDebug( $this->response_string , 'Response' );
         if ( curl_errno( $ch ) )
         {
             $this->response['Response Reason Text'] = curl_error( $ch );
