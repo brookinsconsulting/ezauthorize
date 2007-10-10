@@ -538,6 +538,23 @@ class eZAuthorizeGateway extends eZCurlGateway
             $aim->addField( 'x_ship_to_zip', $this->data['s_zip'] );
             $aim->addField( 'x_ship_to_country', str_replace( " ", "%20", $this->data['s_country'] ) );       
         }
+        else
+        {
+            // customer billing address
+            $aim->addField( 'x_ship_to_first_name', $this->order_first_name );
+            $aim->addField( 'x_ship_to_last_name', $this->order_last_name );
+            $aim->addField( 'x_ship_to_company', $this->order_company );
+
+            // does this match the default?? cause it is wrong with shop account handeler usage !
+            // $aim->addField( 'x_address', $this->order_street2 );
+            //
+            $aim->addField( 'x_ship_to_address', $this->order_street1 .' '. $this->order_street2 );
+
+            $aim->addField( 'x_ship_to_city', $this->order_place );
+            $aim->addField( 'x_ship_to_state', $this->order_state );
+            $aim->addField( 'x_ship_to_zip', $this->order_zip );
+            $aim->addField( 'x_ship_to_country', str_replace( " ", "%20", $this->order_country ) );
+        }
      }
 }
 
