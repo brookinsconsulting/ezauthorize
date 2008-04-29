@@ -198,7 +198,7 @@ class eZCurlGateway extends eZPaymentGateway
     */
     function loadForm( &$process, $errors = false )
     {
-        return EZ_WORKFLOW_TYPE_STATUS_FETCH_TEMPLATE_REPEAT;
+        return eZWorkflowEventType::STATUS_FETCH_TEMPLATE_REPEAT;
     }
 
     /*!
@@ -223,7 +223,7 @@ class eZCurlGateway extends eZPaymentGateway
     */
     function doCURL( &$process )
     {
-        return EZ_WORKFLOW_TYPE_STATUS_ACCEPTED;
+        return eZWorkflowEventType::STATUS_ACCEPTED;
     }
 }
 

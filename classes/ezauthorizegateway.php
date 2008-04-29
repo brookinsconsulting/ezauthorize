@@ -172,7 +172,7 @@ class eZAuthorizeGateway extends eZCurlGateway
 
         // ezDebug::writeDebug( $errors, 'eZAuthorizeGateway loadform'  );
 
-        return EZ_WORKFLOW_TYPE_STATUS_FETCH_TEMPLATE_REPEAT;
+        return eZWorkflowEventType::STATUS_FETCH_TEMPLATE_REPEAT;
     }
 
     function validateForm( &$process )
@@ -392,7 +392,7 @@ class eZAuthorizeGateway extends eZCurlGateway
             $this->data['ezauthorize-transaction-id'] = $response['Transaction ID'];
             $this->_storeAccountHandlerData( $process );
 
-            return EZ_WORKFLOW_TYPE_STATUS_ACCEPTED;
+            return eZWorkflowEventType::STATUS_ACCEPTED;
         }
     }
 

@@ -79,7 +79,7 @@
 </td>
 </tr>
 <tr>
-<td colspan="2"><input class="defaultbutton" type="submit" name="validate" value="Submit" />&nbsp;&nbsp;<input class="defaultbutton" type="submit" name="CancelButton" value="{'Cancel'|i18n('design/standard/workflow')}" /></td>
+<td colspan="2"><input class="defaultbutton" type="submit" name="validate" value="Submit" /><input class="defaultbutton" type="submit" name="CancelButton" value="{'Cancel'|i18n('design/standard/workflow')}" /></td>
 </tr>
 </table>
 
