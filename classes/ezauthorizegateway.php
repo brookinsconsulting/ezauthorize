@@ -69,16 +69,16 @@ class eZAuthorizeGateway extends eZCurlGateway
         $processParams = $process->attribute( 'parameter_list' );
         $order = eZOrder::fetch( $processParams['order_id'] );
         $xmlDoc = $order->attribute( 'data_text_1' );
-
-        $this->data = $this->createArrayfromXML( $xmlDoc );
+eZDebug::writeDebug($xmlDoc);
+        $this->data = simplexml_load_string( $order->attribute( 'data_text_1' ) );
         if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true  )
         {
-            if ( isset( $this->data['ezauthorize-card-number'] ) )
-                $this->data['ezauthorize-card-number'] = $this->gpgDecode( $this->data['ezauthorize-card-number'] );
-            if ( isset( $this->data['ezauthorize-card-name'] ) )
-                $this->data['ezauthorize-card-name'] = $this->gpgDecode( $this->data['ezauthorize-card-name'] );
-            if ( isset( $this->data['ezauthorize-security-number'] ) )
-                $this->data['ezauthorize-security-number'] = $this->gpgDecode( $this->data['ezauthorize-security-number'] );
+            if ( isset( $this->data->{'ezauthorize-card-number'} ) )
+                $this->data->{'ezauthorize-card-number'} = $this->gpgDecode( $this->data->{'ezauthorize-card-number'} );
+            if ( isset( $this->data->{'ezauthorize-card-name'} ) )
+                $this->data->{'ezauthorize-card-name'} = $this->gpgDecode( $this->data->{'ezauthorize-card-name'} );
+            if ( isset( $this->data->{'ezauthorize-security-number'} ) )
+                $this->data->{'ezauthorize-security-number'} = $this->gpgDecode( $this->data->{'ezauthorize-security-number'} );
         }
     }
     function _storeAccountHandlerData( &$process )
@@ -92,34 +92,32 @@ class eZAuthorizeGateway extends eZCurlGateway
         // If transaction storage is enabled
         if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true  )
         {
-            if ( isset( $this->data['ezauthorize-card-number'] ) )
-                $data['ezauthorize-card-number'] = $this->gpgEncode( $this->data['ezauthorize-card-number'] );
-            if ( isset( $this->data['ezauthorize-card-name'] ) )
-                $data['ezauthorize-card-name'] = $this->gpgEncode( $this->data['ezauthorize-card-name'] );
-            if ( isset( $this->data['ezauthorize-security-number'] ) )
-                $data['ezauthorize-security-number'] = $this->gpgEncode( $this->data['ezauthorize-security-number'] );
+            if ( isset( $this->data->{'ezauthorize-card-number'} ) )
+                $data->{'ezauthorize-card-number'} = $this->gpgEncode( $this->data->{'ezauthorize-card-number'} );
+            if ( isset( $this->data->{'ezauthorize-card-name'} ) )
+                $data->{'ezauthorize-card-name'} = $this->gpgEncode( $this->data->{'ezauthorize-card-name'} );
+            if ( isset( $this->data->{'ezauthorize-security-number'} ) )
+                $data->{'ezauthorize-security-number'} = $this->gpgEncode( $this->data->{'ezauthorize-security-number'} );
         }
-        $doc = new eZDOMDocument( 'account_information' );
-        $root = $this->createDOMTreefromArray( 'shop_account', $data );
-        $doc->setRoot( $root );
-        $order->setAttribute( 'data_text_1', $doc->toString() );
+
+        eZDebug::writeDebug($data->asXML(),'asXML()');
+        $order->setAttribute( 'data_text_1', $data->asXML() );
         $order->store();        
     }
 
     function storeHTTPInput( &$process )
     {
         $this->_loadAccountHandlerData( $process );
-        
+        eZDebug::writeDebug($_POST);
         $http = eZHTTPTool::instance();
-        
         // assign shop account handeler payment values
-        if( is_array( $this->data ) )
+        if( is_object( $this->data ) )
         {
-            $this->data['ezauthorize-card-name'] = trim( $http->postVariable( 'CardName' ) );
-            $this->data['ezauthorize-card-number'] = trim( $http->postVariable( 'CardNumber' ) );
-            $this->data['ezauthorize-card-date'] = trim( $http->postVariable( 'ExpirationMonth' ) ) . trim( $http->postVariable( 'ExpirationYear' ) );
-            $this->data['ezauthorize-card-type'] = strtolower( $http->postVariable( 'CardType' ) );
-            $this->data['ezauthorize-security-number'] = trim( $http->postVariable( 'SecurityNumber' ) );
+            $this->data->{'ezauthorize-card-name'} = trim( $http->postVariable( 'CardName' ) );
+            $this->data->{'ezauthorize-card-number'} = trim( $http->postVariable( 'CardNumber' ) );
+            $this->data->{'ezauthorize-card-date'} = trim( $http->postVariable( 'ExpirationMonth' ) ) . trim( $http->postVariable( 'ExpirationYear' ) );
+            $this->data->{'ezauthorize-card-type'} = strtolower( $http->postVariable( 'CardType' ) );
+            $this->data->{'ezauthorize-security-number'} = trim( $http->postVariable( 'SecurityNumber' ) );
             $this->_storeAccountHandlerData( $process );
         }
     }
@@ -169,9 +167,6 @@ class eZAuthorizeGateway extends eZCurlGateway
                                     'text' =>  'Payment Information') ) 
 
         );
-
-        // ezDebug::writeDebug( $errors, 'eZAuthorizeGateway loadform'  );
-
         return eZWorkflowEventType::STATUS_FETCH_TEMPLATE_REPEAT;
     }
 
@@ -252,20 +247,20 @@ class eZAuthorizeGateway extends eZCurlGateway
         $aim = new eZAuthorizeAIM();
 
         // assign card name
-        $aim->addField( 'x_card_name', $this->data['ezauthorize-card-name'] );
+        $aim->addField( 'x_card_name', $this->data->{'ezauthorize-card-name'} );
 
         // assign card expiration date
-        $aim->addField( 'x_exp_date', $this->data['ezauthorize-card-date'] );
+        $aim->addField( 'x_exp_date', $this->data->{'ezauthorize-card-date'} );
 
         // assign card number
-        $aim->addField( 'x_card_num', $this->data['ezauthorize-card-number'] );
+        $aim->addField( 'x_card_num', $this->data->{'ezauthorize-card-number'} );
 
         // check cvv2 code
         if ( $ini->variable( 'eZAuthorizeSettings', 'CustomerCVV2Check' ) == 'true' 
              and $this->data['ezauthorize-security-number'] )
         {
             // assign card security number, cvv2 code
-            $aim->addField( 'x_card_code', $this->data['ezauthorize-security-number'] );
+            $aim->addField( 'x_card_code', $this->data->{'ezauthorize-security-number'} );
         }
 
         // get order customer information
@@ -407,14 +402,10 @@ class eZAuthorizeGateway extends eZCurlGateway
     {
         include_once( 'lib/ezxml/classes/ezxml.php' );
 
-        // get order information out of eZXML
-        $xml = new eZXML();
-        $xmlDoc = $order->attribute( 'data_text_1' );
-
-        if( $xmlDoc != null )
+        // get order information out of XML
+        $xml = simplexml_load_string( $order->attribute( 'data_text_1' ) );
+        if( $xml )
         {
-            $dom = $xml->domTree( $xmlDoc );
-
             // get shop account handeler map settings
             $ini = eZINI::instance( 'ezauthorize.ini' );
 
@@ -422,7 +413,7 @@ class eZAuthorizeGateway extends eZCurlGateway
             if( $ini->variable( 'eZAuthorizeSettings', 'CustomShopAccountHandeler' ) )
             {
               // set shop account handeler values (dynamicaly)
-                // add support for custom values supported like phone and email ...
+              // add support for custom values supported like phone and email ...
 
               $handeler_name_first_name = $ini->variable( 'eZAuthorizeSettings', 'ShopAccountHandelerFirstName' );
               $handeler_name_last_name = $ini->variable( 'eZAuthorizeSettings', 'ShopAccountHandelerLastName' );
@@ -453,52 +444,31 @@ class eZAuthorizeGateway extends eZCurlGateway
 
 
             // assign shop account handeler values (now staticly)
+            $this->order_first_name = $xml->{$handeler_name_first_name};
 
-            $order_first_name = $dom->elementsByName( $handeler_name_first_name );
-            $this->order_first_name = $order_first_name[0]->textContent();
+            $this->order_last_name = $xml->{ $handeler_name_last_name };
 
-            $order_last_name = $dom->elementsByName( $handeler_name_last_name );
-            $this->order_last_name = $order_last_name[0]->textContent();
+            $this->order_email = $xml->{ $handeler_name_email };
 
-            $order_email = $dom->elementsByName( $handeler_name_email );
-            $this->order_email = $order_email[0]->textContent();
-
-            $order_street1 = $dom->elementsByName( $handeler_name_street1 );
-            $this->order_street1 = $order_street1[0]->textContent();
+            $this->order_street1 = $xml->{ $handeler_name_street1 };
 
             $this->order_company = '';
 
-            $order_phone = $dom->elementsByName( $handeler_name_phone );
-            $this->order_phone = '';
-            $this->order_phone = $order_phone[0]->textContent();
+            $this->order_phone = $xml->{ $handeler_name_phone };
 
             // $order_fax = $dom->elementsByName( $handeler_name_fax );
             // $this->order_fax = $order_fax[0]->textContent();
             $this->order_fax = '';
 
-            $order_street2 = $dom->elementsByName( $handeler_name_street2 );
-            if (is_object($order_street2))
-                $this->order_street2 = $order_street2[0]->textContent();
+            $this->order_street2 = $xml->{ $handeler_name_street2 };
 
-            $order_zip = $dom->elementsByName( $handeler_name_zip );
-            $this->order_zip = $order_zip[0]->textContent();
+            $this->order_zip = $xml->{ $handeler_name_zip };
 
-            $order_place = $dom->elementsByName( $handeler_name_place );
-            if( $order_place[0] ) 
-		$this->order_place = $order_place[0]->textContent();
-		else
-		$this->order_place = '';
-            $order_state = $dom->elementsByName( $handeler_name_state );
-	    if( $order_state[0] )
-              $this->order_state = $order_state[0]->textContent();
-            else
- 	      $this->order_state = '';
+		    $this->order_place = $xml->{ $handeler_name_place };
 
-	    $order_country = $dom->elementsByName( $handeler_name_country );
-            if( $order_country[0] )
-	$this->order_country = $order_country[0]->textContent();
-	else
-	$this->order_country = '';
+            $this->order_state = $xml->{ $handeler_name_state };
+
+	        $this->order_country = $xml->{ $handeler_name_country };
 
             return true;
         }

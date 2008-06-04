@@ -256,21 +256,20 @@ class eZAuthorizeAIM
     */
     function hasError()
     {
-        $ret = false;
-
         // response code
         $response_code = $this->response['Response Code'];
-
+        if( $this->response['Response Reason Code'] == 10 and $this->test_mode )
+        {
+            return false;
+        }
         if ( $response_code != 1 and $response_code != 4 )
         {
-            $ret = true;
+            return true;
         }
         else
         {
-            $ret = false;
+            return false;
         }
-
-        return $ret;
     }
 
     /*!

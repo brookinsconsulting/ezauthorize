@@ -23,10 +23,10 @@ class eZAuthorizeInfo
     {
         switch ( $type )
         {
-            case XROWCREDITCARD_TYPE_MASTERCARD:
-            case XROWCREDITCARD_TYPE_VISA:
-            case XROWCREDITCARD_TYPE_DISCOVER:
-            case XROWCREDITCARD_TYPE_AMERICANEXPRESS:
+            case ezcreditcardType::MASTERCARD:
+            case ezcreditcardType::VISA:
+            case ezcreditcardType::DISCOVER:
+            case ezcreditcardType::AMERICANEXPRESS:
             {
                 return true;
             }break;
@@ -39,8 +39,9 @@ class eZAuthorizeInfo
      returns true if a card is valid and can be billed
      This can be called like eZAuthorizeInfo::validateCardData( $contentObjectAttribute, $classAttribute, $data )
     */
-    function validateCardData( &$contentObjectAttribute, &$classAttribute, $data )
+    function validateCardData( $contentObjectAttribute, $classAttribute, $data )
     {
+        $error = false;
         if ( $data['name'] == '' )
         {
             $contentObjectAttribute->setValidationError( ezi18n( 'kernel/classes/datatypes',
@@ -54,7 +55,7 @@ class eZAuthorizeInfo
             $error = true;
         }
 
-        if ( $data['type'] == XROWCREDITCARD_TYPE_AMERICANEXPRESS )
+        if ( $data['type'] == ezcreditcardType::AMERICANEXPRESS )
             $maxDigits = 4;
         else
             $maxDigits = 3;
@@ -102,7 +103,7 @@ class eZAuthorizeInfo
 
      This can be called like eZAuthorizeInfo::validateCard( $data )
     */
-    function validateCard( &$contentObjectAttribute, &$classAttribute, $data )
+    function validateCard( $contentObjectAttribute, $classAttribute, $data )
     {
         $ini = eZINI::instance( 'ezauthorize.ini' );
         include_once ( eZExtension::baseDirectory() . '/ezauthorize/classes/ezauthorizeaim.php' );

@@ -111,7 +111,7 @@ class eZCurlGateway extends eZPaymentGateway
         }
         return $result;
     }
-    function gpgEncode( $value )
+    static function gpgEncode( $value )
     {
         if ( include_once( 'extension/ezgpg/autoloads/ezgpg_operators.php' ) )
         {
@@ -123,7 +123,7 @@ class eZCurlGateway extends eZPaymentGateway
         }
         return $value;
     }
-    function gpgDecode( $value )
+    static function gpgDecode( $value )
     {
         $return = $value;
         if ( include_once( 'extension/ezgpg/autoloads/ezgpg_operators.php' ) )
@@ -136,7 +136,7 @@ class eZCurlGateway extends eZPaymentGateway
         }
         return $value;
     }
-    function execute( &$process, $event )
+    function execute( $process, $event )
     {
         $http = eZHTTPTool::instance();
 
