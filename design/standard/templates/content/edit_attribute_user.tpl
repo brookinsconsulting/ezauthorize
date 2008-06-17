@@ -225,7 +225,7 @@
 
     <div style="width: 390px; float: left; display: inline; margin:5px; padding: 8px;">
         <div style="text-align: right;">
-            <input type="image" src={"images/update.gif"|ezdesign()} name="PublishButton" value="Update">
+            <input class="standard" type="submit" src={"images/update.gif"|ezdesign()} name="PublishButton" value="Update">
         </div>
     </div>
     
