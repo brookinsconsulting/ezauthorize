@@ -37,16 +37,9 @@
   Payment system through Authorize.Net using cURL.
 */
 
-include_once ( 'extension/ezauthorize/classes/ezcurlgateway.php' );
-include_once ( 'extension/ezauthorize/classes/ezauthorizeaim.php' );
-include_once( 'lib/ezxml/classes/ezxml.php' );
-
-define( "EZ_PAYMENT_GATEWAY_TYPE_EZAUTHORIZE", "eZAuthorize" );
-
-
-
 class eZAuthorizeGateway extends eZCurlGateway
 {
+    const GATEWAY_TYPE = "eZAuthorize";
     /*!
      Constructor
     */
@@ -528,6 +521,6 @@ eZDebug::writeDebug($xmlDoc);
      }
 }
 
-eZPaymentGatewayType::registerGateway( EZ_PAYMENT_GATEWAY_TYPE_EZAUTHORIZE, "ezauthorizegateway", "Authorize.Net" );
+eZPaymentGatewayType::registerGateway( eZAuthorizeGateway::GATEWAY_TYPE, "ezauthorizegateway", "Authorize.Net" );
 
 ?>

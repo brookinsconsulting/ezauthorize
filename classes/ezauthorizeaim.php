@@ -258,7 +258,7 @@ class eZAuthorizeAIM
     {
         // response code
         $response_code = $this->response['Response Code'];
-        if( $this->response['Response Reason Code'] == 10 and $this->test_mode )
+        if( in_array( $this->response['Response Reason Code'], array( 10, 2 ) ) and $this->test_mode )
         {
             return false;
         }
