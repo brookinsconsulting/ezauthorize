@@ -237,7 +237,7 @@ class eZAuthorizeAIM
         eZDebug::writeDebug( $this->response_string , 'Response' );
         if ( curl_errno( $ch ) )
         {
-            $this->response['Response Reason Text'] = curl_error( $ch );
+            $this->response['Response Reason Text'] = "CURL Error: " . curl_error( $ch );
             $this->response['Response Code'] = 3;
             return 3;
         }
@@ -258,7 +258,7 @@ class eZAuthorizeAIM
     {
         // response code
         $response_code = $this->response['Response Code'];
-        if( in_array( $this->response['Response Reason Code'], array( 10, 2 ) ) and $this->test_mode )
+        if( in_array( $this->response['Response Reason Code'], array( 10, 2, 0 ) ) and $this->test_mode )
         {
             return false;
         }
