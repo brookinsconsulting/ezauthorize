@@ -289,10 +289,10 @@ eZDebug::writeDebug($xmlDoc);
         // processing has been completed successfully so this is not possible by default.
 
         // or get actual order id (different number used in order view urls)
-        $aim->addField( 'x_invoice_num', $order->attribute( 'order_nr' ) );
+        $aim->addField( 'x_invoice_num', $order->ID );
 
         // assign authorize.net transaction description
-        $aim->addField( 'x_description', 'Order URL ID #' . $order->attribute( 'order_nr' ) );
+        $aim->addField( 'x_description', 'Order ID #' . $order->ID );
 
         // assign customer IP
         if ( !eZSys::isShellExecution() )
