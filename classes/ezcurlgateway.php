@@ -45,7 +45,7 @@ define( "EZ_CURL_GATEWAY_SHOW_FORM", 1 );
 
 define( "EZ_CURL_GATEWAY_DO_CURL", 2 );
 
-include_once( 'kernel/shop/classes/ezpaymentgateway.php' );
+// include_once( 'kernel/shop/classes/ezpaymentgateway.php' );
 
 class eZCurlGateway extends eZPaymentGateway
 {
@@ -93,16 +93,16 @@ class eZCurlGateway extends eZPaymentGateway
     function createArrayfromXML( $xmlDoc )
     {
         $result = array();
-        $xml = new eZXML();
-        $dom = $xml->domTree( $xmlDoc );
-        $node = $dom->get_root();
-        $children = $node->children();
+        $xml = new DOMDocument();
+        $dom = $xml->loadXML( $xmlDoc );
+        $node = $dom->documentElement();
+        $children = $node->childNodes;
         foreach ( $children as $child )
         {
-            $contentnode = $child->firstChild();
-            if ( $contentnode->type === EZ_XML_NODE_TEXT )
+            $contentnode = $child->firstChild;
+            if ( $contentnode->nodeType === EZ_XML_NODE_TEXT )
             {
-                $result[$child->name()] = $contentnode->textContent();
+                $result[$child->localName] = $contentnode->textContent;
             }
             else
             {

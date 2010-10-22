@@ -20,11 +20,11 @@
 // this licencing isn't clear to you.
 //
 
-include_once( 'lib/ezutils/classes/ezini.php' );
-include_once( 'kernel/classes/ezorder.php' );
-include_once( 'lib/ezxml/classes/ezxml.php' );
+// include_once( 'lib/ezutils/classes/ezini.php' );
+// include_once( 'kernel/classes/ezorder.php' );
+// include_once( 'lib/ezxml/classes/ezxml.php' );
 
-include_once( 'extension/ezauthorize/classes/ezauthorizeaim.php' );
+// include_once( 'extension/ezauthorize/classes/ezauthorizeaim.php' );
 
 class ezAuthorizeRefund
 {

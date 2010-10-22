@@ -6,7 +6,7 @@
     used by the extension recurringorders
 */
 
-include_once( eZExtension::baseDirectory() . '/recurringorders/datatypes/ezcreditcard/ezcreditcardtype.php' );
+// include_once( eZExtension::baseDirectory() . '/recurringorders/datatypes/ezcreditcard/ezcreditcardtype.php' );
 
 class eZAuthorizeInfo
 {

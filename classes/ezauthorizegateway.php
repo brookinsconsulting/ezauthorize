@@ -62,7 +62,9 @@ class eZAuthorizeGateway extends eZCurlGateway
         $processParams = $process->attribute( 'parameter_list' );
         $order = eZOrder::fetch( $processParams['order_id'] );
         $xmlDoc = $order->attribute( 'data_text_1' );
-eZDebug::writeDebug($xmlDoc);
+
+	eZDebug::writeDebug( $xmlDoc );
+
         $this->data = simplexml_load_string( $order->attribute( 'data_text_1' ) );
         if ( $ini->variable( 'eZAuthorizeSettings', 'StoreTransactionInformation', 'ezauthorize.ini') == true  )
         {
@@ -393,7 +395,7 @@ eZDebug::writeDebug($xmlDoc);
     */
     function getOrderInfo( $order )
     {
-        include_once( 'lib/ezxml/classes/ezxml.php' );
+        // include_once( 'lib/ezxml/classes/ezxml.php' );
 
         // get order information out of XML
         $xml = simplexml_load_string( $order->attribute( 'data_text_1' ) );
