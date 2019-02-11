@@ -1,0 +1,24 @@
+{
+    "name": "brookinsconsulting/ezauthorize",
+    "description": "eZ Publish Legacy extension eZ Authorize is a complete eZ Publish webshop payment gateway extension which provides robust, transparent, secure credit card payment processing using the eZ Publish and the Authorize.Net credit card processing service. eZ Authorize provides a extensive and quality documentation",
+    "type": "ezpublish-legacy-extension",
+    "keywords": [ "eZ Publish", "eZ Publish Legacy", "eZ Publish Platform", "credit cards", "ezauthorize", "extension", "module", "payment gateway", "payment", "authorize" ],
+    "homepage": "https://github.com/brookinsconsulting/ezauthorize",
+    "license": "GPL-2.0+",
+    "authors": [
+        {
+            "name" : "Brookins Consulting",
+            "homepage": "http://brookinsconsulting.com",
+            "email": "info@brookinsconsulting.com",
+            "role": "Author"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.0.0",
+        "ezsystems/ezpublish-legacy-installer": "*"
+    },
+    "extra": {
+        "ezpublish-legacy-extension-name": "ezauthorize"
+    }
+}
